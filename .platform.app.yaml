@@ -1,0 +1,129 @@
+# This file describes an application. You can have multiple applications
+# in the same project.
+
+
+# The name of this app. Must be unique within a project.
+name: eshop
+
+# The toolstack used to build the application.
+type: php:7.1
+build:
+    flavor: composer
+
+# Enable extensions required by Magento 2
+runtime:
+    extensions:
+        - mcrypt
+        - redis
+        - xsl
+        - json
+        - blackfire
+        - newrelic
+
+# The relationships of the application with services or other applications.
+# The left-hand side is the name of the relationship as it will be exposed
+# to the application in the environment variable. The right-hand
+# side is in the form `<service name>:<endpoint name>`.
+relationships:
+    database: "mysql:mysql"
+    redis: "redis:redis"
+
+# The configuration of app when it is exposed to the web.
+web:
+    locations:
+        "/":
+            # The public directory of the app, relative to its root.
+            root: "pub"
+            # The front-controller script to send non-static requests to.
+            passthru: "/index.php"
+            index:
+                - index.php
+            expires: -1
+            scripts: true
+            allow: false
+            rules:
+                \.(css|js|map|hbs|gif|jpe?g|png|tiff|wbmp|ico|jng|bmp|svgz|midi?|mp?ga|mp2|mp3|m4a|ra|weba|3gpp?|mp4|mpe?g|mpe|ogv|mov|webm|flv|mng|asx|asf|wmv|avi|ogx|swf|jar|ttf|eot|woff|otf|html?)$:
+                    allow: true
+                /robots\.txt$:
+                    passthru: "/media/robots.txt"
+                ^/sitemap(.*)\.xml$:
+                    passthru: "/media/sitemap$1.xml"
+        "/media":
+            root: "pub/media"
+            allow: true
+            scripts: false
+            expires: 1y
+            passthru: "/get.php"
+        "/static":
+            root: "pub/static"
+            allow: true
+            scripts: false
+            expires: 1y
+            passthru: "/front-static.php"
+            rules:
+                ^/static/version\d+/(?<resource>.*)$:
+                    passthru: "/static/$resource"
+
+
+# The size of the persistent disk of the application (in MB).
+disk: 2048
+
+# The mounts that will be performed when the package is deployed.
+mounts:
+    "var": "shared:files/var"
+    "generated": "shared:files/generated"
+    "app/etc": "shared:files/etc"
+    "pub/media": "shared:files/media"
+    "pub/static": "shared:files/static"
+
+hooks:
+    # We run build hooks before your application has been packaged.
+    build: |
+        set -e
+        php ./vendor/bin/ece-tools build:generate
+        php ./vendor/bin/ece-tools build:transfer
+    # We run deploy hook after your application has been deployed and started.
+    deploy: |
+        export MAGENTO_CLOUD_VARIABLES=${PLATFORM_VARIABLES}
+        export MAGENTO_CLOUD_RELATIONSHIPS=${PLATFORM_RELATIONSHIPS}
+        export MAGENTO_CLOUD_ROUTES=${PLATFORM_ROUTES}
+        export MAGENTO_CLOUD_APPLICATION=${PLATFORM_APPLICATION}
+        php ./vendor/bin/ece-tools deploy
+        # php -dmemory_limit=-1 ./bin/magento setup:install --base-url=http://www.master-7rqtwti-f2sjeqonpq6wy.eu-2.platformsh.site --base-url-secure=https://www.master-7rqtwti-f2sjeqonpq6wy.eu-2.platformsh.site --use-secure=1 --use-secure-admin=1 --db-host=database.internal --db-name=main --db-user=user --admin-firstname=Magento --admin-lastname=User --admin-email=magento@orange.be --admin-user=admin --admin-password=passw0rd --language=en_US --backend-frontname=orangeadmin --currency=EUR --timezone=Europe/Paris --cleanup-database --session-save=db --use-rewrites=1
+    # We run post deploy hook to clean and warm the cache. Available with ECE-Tools 2002.0.10.
+    post_deploy: |
+        php ./vendor/bin/ece-tools post-deploy
+# Default Magento 2 cron jobs
+crons:
+    cronrun:
+        spec: "*/1 * * * *"
+        cmd: "php bin/magento cron:run"
+
+# variables:
+#     env:
+#         ADMIN_URL: admin
+#         ADMIN_LOCALE: en_US
+#         ADMIN_USERNAME: admin
+#         ADMIN_FIRSTNAME: OBE
+#         ADMIN_LASTNAME: ADMIN
+#         ADMIN_EMAIL: magento@orange.be
+#         ADMIN_PASSWORD: passw0rd
+#         CRYPT_KEY: 0123456789abcdef
+
+# platform variable:create --level project --name ADMIN_URL --value admin --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_LOCALE --value en_US --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_USERNAME --value admin --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_FIRSTNAME --value OBE --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_LASTNAME --value ADMIN --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_EMAIL --value magento@orange.be --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name ADMIN_PASSWORD --value passw0rd --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+# platform variable:create --level project --name CRYPT_KEY --value 0123456789abcdef --json false --sensitive false --prefix none --visible-build true --visible-runtime false
+
+# platform variable:create --level environment --name ADMIN_URL --value admin --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_LOCALE --value en_US --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_USERNAME --value admin --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_FIRSTNAME --value OBE --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_LASTNAME --value ADMIN --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_EMAIL --value magento@orange.be --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name ADMIN_PASSWORD --value passw0rd --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
+# platform variable:create --level environment --name CRYPT_KEY --value 0123456789abcdef --environment master --enabled true --json false --sensitive false --prefix none --inheritable true 
